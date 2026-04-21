@@ -1,5 +1,5 @@
+/* Base resets — full design tokens live in /rcs-theme.css (linked in layout.tsx) */
 *, *::before, *::after { box-sizing: border-box; }
-body { margin: 0; font-family: system-ui, sans-serif; background: #fff; color: #1A1A1A; }
-button { font-family: inherit; font-size: 14px; cursor: pointer; }
-input, select, textarea { font-family: inherit; font-size: 14px; }
+body { margin: 0; }
+button { cursor: pointer; }
 a { color: inherit; }

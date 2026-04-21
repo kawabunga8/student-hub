@@ -1,0 +1,273 @@
+/*
+ * RCS Design System — Vercel-hosted theme
+ * Source of truth for all Richmond Christian School web apps.
+ *
+ * Usage in other apps:
+ *   <link rel="stylesheet" href="https://<your-domain>/rcs-theme.css" />
+ *
+ * Then use variables:  color: var(--rcs-deep-navy);
+ * Or utility classes:  class="rcs-btn-primary"
+ */
+
+/* ── Fonts ─────────────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+
+/* ── Tokens ────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Colors */
+  --rcs-deep-navy:  #1F4E79;
+  --rcs-mid-blue:   #2E75B6;
+  --rcs-light-blue: #D6E4F0;
+  --rcs-gold:       #C9A84C;
+  --rcs-pale-gold:  #FDF3DC;
+  --rcs-white:      #FFFFFF;
+  --rcs-text-dark:  #1A1A1A;
+  --rcs-bg:         #F0F4F8;
+
+  /* Error / success */
+  --rcs-error-bg:   #FEE2E2;
+  --rcs-error-border: #991B1B;
+  --rcs-error-text: #7F1D1D;
+  --rcs-success-bg:   #DCFCE7;
+  --rcs-success-border: #86EFAC;
+
+  /* Typography */
+  --rcs-font: 'Inter', system-ui, -apple-system, sans-serif;
+  --rcs-size-xs:   11px;
+  --rcs-size-sm:   13px;
+  --rcs-size-base: 14px;
+  --rcs-size-md:   16px;
+  --rcs-size-lg:   20px;
+  --rcs-size-xl:   24px;
+  --rcs-size-2xl:  32px;
+
+  /* Spacing */
+  --rcs-space-1: 4px;
+  --rcs-space-2: 8px;
+  --rcs-space-3: 12px;
+  --rcs-space-4: 16px;
+  --rcs-space-5: 20px;
+  --rcs-space-6: 24px;
+  --rcs-space-8: 32px;
+
+  /* Border radius */
+  --rcs-radius-sm: 6px;
+  --rcs-radius-md: 10px;
+  --rcs-radius-lg: 14px;
+
+  /* Shadows (navy-tinted) */
+  --rcs-shadow-sm: 0 1px 3px rgba(31, 78, 121, 0.12);
+  --rcs-shadow-md: 0 4px 12px rgba(31, 78, 121, 0.15);
+  --rcs-shadow-lg: 0 8px 24px rgba(31, 78, 121, 0.18);
+
+  /* Transitions */
+  --rcs-transition: 150ms ease;
+}
+
+/* ── Base reset ────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--rcs-font);
+  font-size: var(--rcs-size-base);
+  color: var(--rcs-text-dark);
+  background: var(--rcs-white);
+  -webkit-font-smoothing: antialiased;
+}
+
+button   { font-family: inherit; font-size: var(--rcs-size-base); cursor: pointer; }
+input,
+select,
+textarea { font-family: inherit; font-size: var(--rcs-size-base); }
+a        { color: inherit; }
+
+/* ── Layout ────────────────────────────────────────────────────────────────── */
+
+.rcs-page {
+  min-height: 100vh;
+  background: var(--rcs-bg);
+  display: grid;
+  place-items: center;
+  padding: var(--rcs-space-6);
+}
+
+/* ── App header bar ────────────────────────────────────────────────────────── */
+
+.rcs-header {
+  background: var(--rcs-deep-navy);
+  border-bottom: 4px solid var(--rcs-gold);
+  padding: var(--rcs-space-5) var(--rcs-space-6);
+}
+
+.rcs-header__eyebrow {
+  color: var(--rcs-gold);
+  font-weight: 900;
+  font-size: var(--rcs-size-xs);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: var(--rcs-space-1);
+}
+
+.rcs-header__title {
+  color: var(--rcs-white);
+  font-weight: 900;
+  font-size: var(--rcs-size-xl);
+}
+
+/* ── Card ──────────────────────────────────────────────────────────────────── */
+
+.rcs-card {
+  background: var(--rcs-white);
+  border: 1px solid var(--rcs-deep-navy);
+  border-radius: var(--rcs-radius-lg);
+  box-shadow: var(--rcs-shadow-md);
+  overflow: hidden;
+}
+
+.rcs-card__body {
+  padding: var(--rcs-space-6);
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────────── */
+
+.rcs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rcs-space-2);
+  padding: 10px var(--rcs-space-4);
+  border-radius: var(--rcs-radius-md);
+  font-weight: 900;
+  font-size: var(--rcs-size-base);
+  border: 1px solid transparent;
+  transition: opacity var(--rcs-transition), box-shadow var(--rcs-transition);
+  cursor: pointer;
+}
+
+.rcs-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.rcs-btn:not(:disabled):hover { box-shadow: var(--rcs-shadow-sm); opacity: 0.92; }
+
+.rcs-btn-primary {
+  background: var(--rcs-deep-navy);
+  border-color: var(--rcs-gold);
+  color: var(--rcs-white);
+}
+
+.rcs-btn-secondary {
+  background: transparent;
+  border-color: var(--rcs-gold);
+  color: var(--rcs-deep-navy);
+}
+
+.rcs-btn-ghost {
+  background: transparent;
+  border-color: var(--rcs-mid-blue);
+  color: var(--rcs-mid-blue);
+}
+
+/* ── Form inputs ───────────────────────────────────────────────────────────── */
+
+.rcs-input {
+  width: 100%;
+  padding: 10px var(--rcs-space-3);
+  border-radius: var(--rcs-radius-md);
+  border: 1px solid var(--rcs-deep-navy);
+  font-size: var(--rcs-size-base);
+  outline: none;
+  transition: border-color var(--rcs-transition), box-shadow var(--rcs-transition);
+}
+
+.rcs-input:focus {
+  border-color: var(--rcs-mid-blue);
+  box-shadow: 0 0 0 3px rgba(46, 117, 182, 0.2);
+}
+
+.rcs-label {
+  display: grid;
+  gap: var(--rcs-space-1);
+  font-weight: 800;
+  font-size: var(--rcs-size-sm);
+  color: var(--rcs-mid-blue);
+}
+
+/* ── Alerts ────────────────────────────────────────────────────────────────── */
+
+.rcs-alert {
+  padding: 10px var(--rcs-space-3);
+  border-radius: var(--rcs-radius-sm);
+  font-size: var(--rcs-size-sm);
+  border: 1px solid transparent;
+}
+
+.rcs-alert-error {
+  background: var(--rcs-error-bg);
+  border-color: var(--rcs-error-border);
+  color: var(--rcs-error-text);
+}
+
+.rcs-alert-success {
+  background: var(--rcs-success-bg);
+  border-color: var(--rcs-success-border);
+}
+
+/* ── Section header (list panels) ──────────────────────────────────────────── */
+
+.rcs-section-header {
+  background: var(--rcs-light-blue);
+  border-bottom: 1px solid var(--rcs-mid-blue);
+  padding: var(--rcs-space-2) var(--rcs-space-4);
+  font-size: var(--rcs-size-sm);
+  font-weight: 700;
+  color: var(--rcs-deep-navy);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Tab strip ─────────────────────────────────────────────────────────────── */
+
+.rcs-tabs {
+  display: flex;
+  border-bottom: 2px solid var(--rcs-light-blue);
+}
+
+.rcs-tab {
+  padding: var(--rcs-space-2) var(--rcs-space-4);
+  font-size: var(--rcs-size-sm);
+  font-weight: 700;
+  color: var(--rcs-mid-blue);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition: color var(--rcs-transition), border-color var(--rcs-transition);
+}
+
+.rcs-tab:hover { color: var(--rcs-deep-navy); }
+
+.rcs-tab[aria-selected="true"],
+.rcs-tab.active {
+  color: var(--rcs-deep-navy);
+  border-bottom-color: var(--rcs-deep-navy);
+}
+
+/* ── Badge ─────────────────────────────────────────────────────────────────── */
+
+.rcs-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: var(--rcs-size-xs);
+  font-weight: 700;
+  background: var(--rcs-light-blue);
+  color: var(--rcs-deep-navy);
+}
+
+.rcs-badge-gold {
+  background: var(--rcs-pale-gold);
+  color: var(--rcs-text-dark);
+}

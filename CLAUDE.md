@@ -51,10 +51,30 @@ Each route uses a thin Server Component page that wraps a `*Client.tsx` componen
 - `/students` — main app: student list, search/filter, detail panel with tabs (Info, Classes, Notes, Marks), CSV import, photo upload
 
 ### Styling
-No CSS framework. All styles are inline using the `RCS` colour palette constant defined locally in each component:
+
+No CSS framework. The RCS design system lives in two files:
+
+| File | Purpose |
+|------|---------|
+| `public/rcs-theme.css` | **Vercel-hosted stylesheet** — CSS custom properties (`--rcs-*`) and utility classes (`.rcs-btn-primary`, `.rcs-card`, etc.). Other RCS apps link to this via `<link rel="stylesheet" href="https://<domain>/rcs-theme.css" />`. |
+| `src/lib/theme.ts` | **JS mirror** — exports `RCS` object with the same color values for use in React inline `style` props. |
+
+`globals.css` imports `rcs-theme.css` so CSS variables and utility classes are available everywhere.
+
+In components, import colors like this — never define them locally:
 ```ts
-const RCS = {
-  deepNavy: '#1F4E79', midBlue: '#2E75B6', lightBlue: '#D6E4F0',
-  gold: '#C9A84C', paleGold: '#FDF3DC', white: '#FFFFFF', textDark: '#1A1A1A',
-}
+import { RCS } from '@/lib/theme';
+// then use: style={{ color: RCS.deepNavy }}
+```
+
+**Palette:**
+```ts
+deepNavy: '#1F4E79'  // headers, borders, primary buttons
+midBlue:  '#2E75B6'  // labels, links, secondary accents
+lightBlue:'#D6E4F0'  // backgrounds, tab underlines
+gold:     '#C9A84C'  // accent borders, gold buttons
+paleGold: '#FDF3DC'  // pale gold backgrounds
+white:    '#FFFFFF'
+textDark: '#1A1A1A'
+bg:       '#F0F4F8'  // page background
 ```

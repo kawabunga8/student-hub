@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getSupabaseClient } from '@/lib/supabaseClient';
+import { RCS } from '@/lib/theme';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -26,13 +27,6 @@ type Panel = 'info' | 'classes' | 'notes' | 'marks';
 const GRADE_YEARS = [9, 10, 11, 12];
 const GENDERS = ['male', 'female', 'non-binary'];
 const STUDENT_PHOTOS_BUCKET = 'Student Photos';
-
-// ── RCS colours ───────────────────────────────────────────────────────────────
-
-const RCS = {
-  deepNavy: '#1F4E79', midBlue: '#2E75B6', lightBlue: '#D6E4F0',
-  gold: '#C9A84C', paleGold: '#FDF3DC', white: '#FFFFFF', textDark: '#1A1A1A',
-} as const;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -197,10 +191,10 @@ export default function StudentsClient() {
 
   async function saveEdit() {
     if (!selectedId || !editForm) return;
-    if (!editForm.first_name.trim() || !editForm.last_name.trim()) { setEditError('First and last name are required.'); return; }
+    if (!editForm.first_name?.trim() || !editForm.last_name?.trim()) { setEditError('First and last name are required.'); return; }
     setEditStatus('working'); setEditError(null);
     try {
-      const payload = { first_name: editForm.first_name?.trim() || '', last_name: editForm.last_name?.trim() || '', grade_year: editForm.grade_year, gender: editForm.gender, student_number: editForm.student_number?.trim() || null, school_year: editForm.school_year?.trim() || null };
+      const payload = { first_name: editForm.first_name?.trim() || '', last_name: editForm.last_name?.trim() || '', grade_year: editForm.grade_year ?? null, gender: editForm.gender ?? null, student_number: editForm.student_number?.trim() || null, school_year: editForm.school_year?.trim() || null };
       const { error } = await getSupabaseClient().from('students').update(payload).eq('id', selectedId);
       if (error) throw error;
       setStudents(prev => prev.map(s => s.id === selectedId ? { ...s, ...payload } : s));
@@ -776,22 +770,20 @@ function humanizeError(e: any): string {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const RCS_c = { deepNavy: '#1F4E79', midBlue: '#2E75B6', lightBlue: '#D6E4F0', gold: '#C9A84C', paleGold: '#FDF3DC', white: '#FFFFFF' };
-
 const S: Record<string, React.CSSProperties> = {
-  card: { background: '#fff', border: `1px solid ${RCS_c.deepNavy}`, borderRadius: 12, padding: 16 },
-  sectionHeader: { background: RCS_c.deepNavy, color: '#fff', padding: '8px 10px', borderRadius: 10, borderBottom: `3px solid ${RCS_c.gold}`, fontWeight: 900, marginBottom: 12 },
+  card: { background: '#fff', border: `1px solid ${RCS.deepNavy}`, borderRadius: 12, padding: 16 },
+  sectionHeader: { background: RCS.deepNavy, color: '#fff', padding: '8px 10px', borderRadius: 10, borderBottom: `3px solid ${RCS.gold}`, fontWeight: 900, marginBottom: 12 },
   fieldWrap: { display: 'grid', gap: 4 },
-  label: { color: RCS_c.midBlue, fontWeight: 800, fontSize: 12 },
+  label: { color: RCS.midBlue, fontWeight: 800, fontSize: 12 },
   muted: { opacity: 0.7, fontSize: 13, padding: '6px 0' },
-  input: { padding: '9px 11px', borderRadius: 10, border: `1px solid ${RCS_c.deepNavy}`, background: '#fff', color: '#1A1A1A', fontSize: 14 },
-  primaryBtn: { padding: '10px 16px', borderRadius: 10, background: RCS_c.deepNavy, border: `1px solid ${RCS_c.gold}`, color: '#fff', fontWeight: 900, cursor: 'pointer' },
-  secondaryBtn: { padding: '10px 14px', borderRadius: 10, border: `1px solid ${RCS_c.gold}`, background: 'transparent', color: RCS_c.deepNavy, fontWeight: 900, cursor: 'pointer' },
+  input: { padding: '9px 11px', borderRadius: 10, border: `1px solid ${RCS.deepNavy}`, background: '#fff', color: RCS.textDark, fontSize: 14 },
+  primaryBtn: { padding: '10px 16px', borderRadius: 10, background: RCS.deepNavy, border: `1px solid ${RCS.gold}`, color: '#fff', fontWeight: 900, cursor: 'pointer' },
+  secondaryBtn: { padding: '10px 14px', borderRadius: 10, border: `1px solid ${RCS.gold}`, background: 'transparent', color: RCS.deepNavy, fontWeight: 900, cursor: 'pointer' },
   navBtn: { padding: '8px 14px', borderRadius: 8, border: `1px solid rgba(255,255,255,0.3)`, background: 'transparent', color: '#fff', fontWeight: 800, fontSize: 13, cursor: 'pointer' },
-  navBtnGold: { padding: '8px 14px', borderRadius: 8, border: `1px solid ${RCS_c.gold}`, background: RCS_c.gold, color: RCS_c.deepNavy, fontWeight: 900, fontSize: 13, cursor: 'pointer' },
-  navBtnOutline: { padding: '8px 14px', borderRadius: 8, border: `1px solid ${RCS_c.gold}`, background: 'transparent', color: RCS_c.gold, fontWeight: 900, fontSize: 13, cursor: 'pointer' },
+  navBtnGold: { padding: '8px 14px', borderRadius: 8, border: `1px solid ${RCS.gold}`, background: RCS.gold, color: RCS.deepNavy, fontWeight: 900, fontSize: 13, cursor: 'pointer' },
+  navBtnOutline: { padding: '8px 14px', borderRadius: 8, border: `1px solid ${RCS.gold}`, background: 'transparent', color: RCS.gold, fontWeight: 900, fontSize: 13, cursor: 'pointer' },
   dangerSm: { padding: '6px 10px', borderRadius: 8, border: '1px solid #991b1b', background: '#FEE2E2', color: '#7F1D1D', fontWeight: 900, fontSize: 12, cursor: 'pointer' },
-  editSm: { padding: '6px 10px', borderRadius: 8, border: `1px solid ${RCS_c.gold}`, background: RCS_c.paleGold, color: RCS_c.deepNavy, fontWeight: 900, fontSize: 12, cursor: 'pointer' },
+  editSm: { padding: '6px 10px', borderRadius: 8, border: `1px solid ${RCS.gold}`, background: RCS.paleGold, color: RCS.deepNavy, fontWeight: 900, fontSize: 12, cursor: 'pointer' },
   errorBox: { padding: 12, borderRadius: 10, background: '#FEE2E2', border: '1px solid #991b1b', color: '#7F1D1D' },
-  noteCard: { padding: 12, borderRadius: 10, border: `1px solid ${RCS_c.lightBlue}`, background: '#f8fbff' },
+  noteCard: { padding: 12, borderRadius: 10, border: `1px solid ${RCS.lightBlue}`, background: '#f8fbff' },
 };
