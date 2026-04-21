@@ -3,11 +3,7 @@
 import { FormEvent, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getSupabaseClient } from '@/lib/supabaseClient';
-
-const RCS = {
-  deepNavy: '#1F4E79', midBlue: '#2E75B6', gold: '#C9A84C',
-  paleGold: '#FDF3DC', white: '#FFFFFF', textDark: '#1A1A1A',
-} as const;
+import { RCS } from '@/lib/theme';
 
 export default function LoginClient() {
   const router = useRouter();
