@@ -12,7 +12,8 @@ const RCS = {
 export default function LoginClient() {
   const router = useRouter();
   const sp = useSearchParams();
-  const next = sp.get('next') || '/students';
+  const raw = sp.get('next') || '/students';
+  const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/students';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

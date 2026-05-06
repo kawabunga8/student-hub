@@ -88,6 +88,10 @@ alter table enrollments enable row level security;
 alter table student_notes enable row level security;
 alter table student_marks enable row level security;
 
--- Staff-only access (adjust is_staff() to match your auth setup)
--- Example policy — uncomment and adjust as needed:
--- create policy "Staff can do everything" on students for all using (is_staff());
+-- Authenticated users (staff) can read and write all tables.
+-- The app requires login via middleware; these policies enforce the same rule at the DB layer.
+create policy "Authenticated full access" on students        for all to authenticated using (true) with check (true);
+create policy "Authenticated full access" on classes         for all to authenticated using (true) with check (true);
+create policy "Authenticated full access" on enrollments     for all to authenticated using (true) with check (true);
+create policy "Authenticated full access" on student_notes   for all to authenticated using (true) with check (true);
+create policy "Authenticated full access" on student_marks   for all to authenticated using (true) with check (true);

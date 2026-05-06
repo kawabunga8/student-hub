@@ -75,6 +75,7 @@ export default function StudentsClient() {
   // ── Notes ──────────────────────────────────────────────────────────────────
   const [notes, setNotes] = useState<NoteRow[]>([]);
   const [notesStatus, setNotesStatus] = useState<'idle' | 'loading' | 'working'>('idle');
+  const [notesError, setNotesError] = useState<string | null>(null);
   const [newNote, setNewNote] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteText, setEditingNoteText] = useState('');
@@ -82,6 +83,7 @@ export default function StudentsClient() {
   // ── Marks ──────────────────────────────────────────────────────────────────
   const [marks, setMarks] = useState<MarkRow[]>([]);
   const [marksStatus, setMarksStatus] = useState<'idle' | 'loading' | 'working'>('idle');
+  const [marksError, setMarksError] = useState<string | null>(null);
   const [showAddMark, setShowAddMark] = useState(false);
   const [markForm, setMarkForm] = useState({ subject: '', mark: '', quarter: '', class_id: '', note: '' });
   const [editingMarkId, setEditingMarkId] = useState<string | null>(null);
@@ -197,10 +199,10 @@ export default function StudentsClient() {
 
   async function saveEdit() {
     if (!selectedId || !editForm) return;
-    if (!editForm.first_name.trim() || !editForm.last_name.trim()) { setEditError('First and last name are required.'); return; }
+    if (!editForm.first_name?.trim() || !editForm.last_name?.trim()) { setEditError('First and last name are required.'); return; }
     setEditStatus('working'); setEditError(null);
     try {
-      const payload = { first_name: editForm.first_name?.trim() || '', last_name: editForm.last_name?.trim() || '', grade_year: editForm.grade_year, gender: editForm.gender, student_number: editForm.student_number?.trim() || null, school_year: editForm.school_year?.trim() || null };
+      const payload = { first_name: editForm.first_name?.trim() || '', last_name: editForm.last_name?.trim() || '', grade_year: editForm.grade_year ?? null, gender: editForm.gender ?? null, student_number: editForm.student_number?.trim() || null, school_year: editForm.school_year?.trim() || null };
       const { error } = await getSupabaseClient().from('students').update(payload).eq('id', selectedId);
       if (error) throw error;
       setStudents(prev => prev.map(s => s.id === selectedId ? { ...s, ...payload } : s));
@@ -222,6 +224,9 @@ export default function StudentsClient() {
 
   async function uploadPhoto(file: File) {
     if (!selectedId) return;
+    const MAX_BYTES = 5 * 1024 * 1024;
+    if (file.size > MAX_BYTES) { setUploadError('Photo must be under 5 MB.'); return; }
+    if (!file.type.startsWith('image/')) { setUploadError('File must be an image (JPEG, PNG, etc.).'); return; }
     setUploadStatus('working'); setUploadError(null);
     try {
       const sb = getSupabaseClient();
@@ -263,35 +268,36 @@ export default function StudentsClient() {
 
   async function addNote() {
     if (!selectedId || !newNote.trim()) return;
-    setNotesStatus('working');
+    setNotesStatus('working'); setNotesError(null);
     try {
       const { data, error } = await getSupabaseClient().from('student_notes').insert({ student_id: selectedId, note: newNote.trim() }).select().single();
       if (error) throw error;
       setNotes(prev => [data as NoteRow, ...prev]); setNewNote(''); setNotesStatus('idle');
-    } catch { setNotesStatus('idle'); }
+    } catch (e: any) { setNotesError(humanizeError(e)); setNotesStatus('idle'); }
   }
 
   async function saveNote(id: string) {
-    setNotesStatus('working');
+    setNotesStatus('working'); setNotesError(null);
     try {
       const { error } = await getSupabaseClient().from('student_notes').update({ note: editingNoteText.trim(), updated_at: new Date().toISOString() }).eq('id', id);
       if (error) throw error;
       setNotes(prev => prev.map(n => n.id === id ? { ...n, note: editingNoteText.trim() } : n));
       setEditingNoteId(null); setEditingNoteText(''); setNotesStatus('idle');
-    } catch { setNotesStatus('idle'); }
+    } catch (e: any) { setNotesError(humanizeError(e)); setNotesStatus('idle'); }
   }
 
   async function deleteNote(id: string) {
     if (!window.confirm('Delete this note?')) return;
     const { error } = await getSupabaseClient().from('student_notes').delete().eq('id', id);
-    if (!error) setNotes(prev => prev.filter(n => n.id !== id));
+    if (error) setNotesError(humanizeError(error));
+    else setNotes(prev => prev.filter(n => n.id !== id));
   }
 
   // ── Marks ──────────────────────────────────────────────────────────────────
 
   async function addMark() {
     if (!selectedId || !markForm.subject.trim() || !markForm.mark.trim()) return;
-    setMarksStatus('working');
+    setMarksStatus('working'); setMarksError(null);
     try {
       const { data, error } = await getSupabaseClient().from('student_marks').insert({
         student_id: selectedId, subject: markForm.subject.trim(), mark: markForm.mark.trim(),
@@ -301,11 +307,11 @@ export default function StudentsClient() {
       if (error) throw error;
       setMarks(prev => [data as MarkRow, ...prev]);
       setMarkForm({ subject: '', mark: '', quarter: '', class_id: '', note: '' }); setShowAddMark(false); setMarksStatus('idle');
-    } catch { setMarksStatus('idle'); }
+    } catch (e: any) { setMarksError(humanizeError(e)); setMarksStatus('idle'); }
   }
 
   async function saveMark(id: string) {
-    setMarksStatus('working');
+    setMarksStatus('working'); setMarksError(null);
     try {
       const { error } = await getSupabaseClient().from('student_marks').update({
         subject: editingMarkForm.subject.trim(),
@@ -324,13 +330,14 @@ export default function StudentsClient() {
         note: editingMarkForm.note.trim() || null,
       } : m));
       setEditingMarkId(null); setEditingMarkForm({ subject: '', mark: '', quarter: '', class_id: '', note: '' }); setMarksStatus('idle');
-    } catch { setMarksStatus('idle'); }
+    } catch (e: any) { setMarksError(humanizeError(e)); setMarksStatus('idle'); }
   }
 
   async function deleteMark(id: string) {
     if (!window.confirm('Delete this mark?')) return;
     const { error } = await getSupabaseClient().from('student_marks').delete().eq('id', id);
-    if (!error) setMarks(prev => prev.filter(m => m.id !== id));
+    if (error) setMarksError(humanizeError(error));
+    else setMarks(prev => prev.filter(m => m.id !== id));
   }
 
   // ── Export CSV ─────────────────────────────────────────────────────────────
@@ -355,38 +362,38 @@ export default function StudentsClient() {
     setImportStatus('working'); setImportMsg('');
     try {
       const text = await file.text();
-      const lines = text.trim().split('\n');
-      const header = lines[0].toLowerCase().split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const lines = text.trim().split(/\r?\n/);
+      const header = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim());
 
       const getCol = (row: string[], name: string) => {
         const idx = header.indexOf(name);
-        if (idx < 0) return '';
-        return (row[idx] ?? '').trim().replace(/^"|"$/g, '').trim();
+        return idx >= 0 ? (row[idx] ?? '').trim() : '';
       };
 
-      const rows = lines.slice(1).map(line => {
-        // simple CSV split (handles quoted fields without embedded commas)
-        const cols = line.split(',');
-        return cols;
-      });
-
-      const toInsert = rows.filter(r => r.length > 0).map(r => {
+      const toInsert = lines.slice(1).filter(l => l.trim()).map(line => {
+        const r = parseCSVLine(line);
         const first = getCol(r, 'first_name') || getCol(r, 'firstname') || getCol(r, 'first name');
         const last = getCol(r, 'last_name') || getCol(r, 'lastname') || getCol(r, 'last name');
         const fullName = getCol(r, 'full_name') || getCol(r, 'fullname') || getCol(r, 'name');
         const finalFirst = first || (fullName ? fullName.split(' ')[0] : '');
         const finalLast = last || (fullName ? fullName.split(' ').slice(1).join(' ') : '');
         if (!finalFirst || !finalLast) return null;
+        const gradeRaw = parseInt(getCol(r, 'grade_year') || getCol(r, 'grade'), 10);
+        const grade_year = GRADE_YEARS.includes(gradeRaw) ? gradeRaw : null;
         return {
           first_name: finalFirst, last_name: finalLast,
           student_number: getCol(r, 'student_number') || getCol(r, 'student number') || null,
-          grade_year: getCol(r, 'grade_year') || getCol(r, 'grade') ? parseInt(getCol(r, 'grade_year') || getCol(r, 'grade')) || null : null,
+          grade_year,
           gender: getCol(r, 'gender') || null,
           school_year: getCol(r, 'school_year') || getCol(r, 'school year') || null,
         };
       }).filter(Boolean);
 
-      if (toInsert.length === 0) { setImportStatus('error'); setImportMsg('No valid rows found. Make sure your CSV has first_name and last_name columns.'); return; }
+      if (toInsert.length === 0) {
+        setImportStatus('error');
+        setImportMsg('No valid rows found. CSV must have first_name (or full_name) and last_name columns.');
+        return;
+      }
 
       const { error } = await getSupabaseClient().from('students').insert(toInsert as any[]);
       if (error) throw error;
@@ -661,6 +668,7 @@ export default function StudentsClient() {
                       {notesStatus === 'working' ? 'Saving…' : 'Add Note'}
                     </button>
                   </div>
+                  {notesError && <div style={{ ...S.errorBox, marginBottom: 10 }}>{notesError}</div>}
                   {notesStatus === 'loading' && <div style={S.muted}>Loading…</div>}
                   {notes.length === 0 && notesStatus !== 'loading' && <div style={S.muted}>No notes yet.</div>}
                   <div style={{ display: 'grid', gap: 8 }}>
@@ -696,6 +704,7 @@ export default function StudentsClient() {
               {/* ── Marks tab ── */}
               {activePanel === 'marks' && (
                 <div>
+                  {marksError && <div style={{ ...S.errorBox, marginBottom: 10 }}>{marksError}</div>}
                   {!showAddMark && <button onClick={() => setShowAddMark(true)} style={{ ...S.primaryBtn, marginBottom: 14 }}>+ Add Mark</button>}
                   {showAddMark && (
                     <div style={{ ...S.noteCard, marginBottom: 14 }}>
@@ -762,6 +771,26 @@ export default function StudentsClient() {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
+      else if (ch === '"') { inQuotes = false; }
+      else { current += ch; }
+    } else {
+      if (ch === '"') { inQuotes = true; }
+      else if (ch === ',') { result.push(current); current = ''; }
+      else { current += ch; }
+    }
+  }
+  result.push(current);
+  return result;
+}
 
 function cap(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }
 function fmtDate(d: string) { return new Date(d).toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' }); }

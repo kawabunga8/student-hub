@@ -7,10 +7,11 @@ export default function AuthCallbackPage() {
   const router = useRouter();
   useEffect(() => {
     const supabase = getSupabaseClient();
-    supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') router.push('/reset-password');
       else if (event === 'SIGNED_IN') router.push('/students');
     });
+    return () => subscription.unsubscribe();
   }, [router]);
   return <main style={{ padding: 24, fontFamily: 'system-ui' }}>Completing sign-in…</main>;
 }
