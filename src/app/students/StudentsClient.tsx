@@ -413,6 +413,10 @@ export default function StudentsClient() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const enrolledIds = new Set(enrollments.map(e => e.class_id));
+  const currentYear = selectedStudent?.school_year ?? null;
+  const currentEnrolledIds = new Set(
+    enrollments.filter(e => e.school_year === currentYear).map(e => e.class_id)
+  );
 
   return (
     <div style={{ minHeight: '100vh', background: '#f0f4f8', fontFamily: 'system-ui' }}>
@@ -632,29 +636,65 @@ export default function StudentsClient() {
               {/* ── Classes tab ── */}
               {activePanel === 'classes' && (
                 <div>
-                  <p style={{ ...S.muted, marginBottom: 12 }}>Toggle classes to enroll or remove this student.</p>
-                  {enrollError && <div style={S.errorBox}>{enrollError}</div>}
+                  {enrollError && <div style={{ ...S.errorBox, marginBottom: 10 }}>{enrollError}</div>}
                   {enrollStatus === 'loading' && <div style={S.muted}>Loading…</div>}
-                  <div style={{ display: 'grid', gap: 6 }}>
-                    {classes.filter(c => !['Flex', 'Lunch', 'Chapel', 'CLE'].includes(c.name)).map(cls => {
-                      const enrolled = enrolledIds.has(cls.id);
-                      return (
-                        <div key={cls.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: 10, border: `1px solid ${enrolled ? RCS.gold : RCS.lightBlue}`, background: enrolled ? RCS.paleGold : RCS.white }}>
-                          <div>
+
+                  {/* Current year — editable */}
+                  <div style={{ marginBottom: 18 }}>
+                    <div style={{ fontWeight: 900, color: RCS.deepNavy, fontSize: 13, marginBottom: 8 }}>
+                      {currentYear ? `${currentYear} — enroll or remove` : 'Current year — set School Year on the Info tab to enable year tracking'}
+                    </div>
+                    <div style={{ display: 'grid', gap: 6 }}>
+                      {classes.filter(c => !['Flex', 'Lunch', 'Chapel', 'CLE'].includes(c.name)).map(cls => {
+                        const enrolled = currentEnrolledIds.has(cls.id);
+                        return (
+                          <div key={cls.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: 10, border: `1px solid ${enrolled ? RCS.gold : RCS.lightBlue}`, background: enrolled ? RCS.paleGold : RCS.white }}>
                             <span style={{ fontWeight: 900, color: RCS.deepNavy }}>
                               {cls.block_label ? `Block ${cls.block_label} – ` : ''}{cls.name}
                             </span>
+                            <button
+                              onClick={() => toggleEnrollment(cls.id, enrolled)}
+                              disabled={enrollStatus === 'working'}
+                              style={enrolled ? S.dangerSm : { ...S.primaryBtn, fontSize: 12, padding: '6px 12px' }}>
+                              {enrolled ? 'Remove' : 'Enroll'}
+                            </button>
                           </div>
-                          <button
-                            onClick={() => toggleEnrollment(cls.id, enrolled)}
-                            disabled={enrollStatus === 'working'}
-                            style={enrolled ? S.dangerSm : { ...S.primaryBtn, fontSize: 12, padding: '6px 12px' }}>
-                            {enrolled ? 'Remove' : 'Enroll'}
-                          </button>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
+
+                  {/* Past years — read-only */}
+                  {(() => {
+                    const pastEnrollments = enrollments.filter(e => e.school_year !== currentYear && e.school_year != null);
+                    if (pastEnrollments.length === 0) return null;
+                    const pastYears = [...new Set(pastEnrollments.map(e => e.school_year as string))].sort().reverse();
+                    return (
+                      <div>
+                        <div style={{ fontWeight: 900, color: RCS.midBlue, fontSize: 13, marginBottom: 8, paddingTop: 4, borderTop: `1px solid ${RCS.lightBlue}` }}>
+                          Past enrollments
+                        </div>
+                        {pastYears.map(year => {
+                          const yearClasses = pastEnrollments
+                            .filter(e => e.school_year === year)
+                            .map(e => classes.find(c => c.id === e.class_id))
+                            .filter((c): c is ClassRow => c !== undefined);
+                          return (
+                            <div key={year} style={{ marginBottom: 12 }}>
+                              <div style={{ fontSize: 12, fontWeight: 800, color: RCS.midBlue, opacity: 0.75, marginBottom: 4 }}>{year}</div>
+                              <div style={{ display: 'grid', gap: 4 }}>
+                                {yearClasses.map(cls => (
+                                  <div key={cls.id} style={{ padding: '8px 12px', borderRadius: 10, border: `1px solid ${RCS.lightBlue}`, background: '#f8fbff', color: RCS.textDark, fontSize: 14, fontWeight: 700 }}>
+                                    {cls.block_label ? `Block ${cls.block_label} – ` : ''}{cls.name}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
