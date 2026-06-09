@@ -391,13 +391,13 @@ export default function StudentsClient() {
         return idx >= 0 ? (row[idx] ?? '').trim() : '';
       };
 
-      const toInsert = lines.slice(1).filter(l => l.trim()).map(line => {
+      const parsed = lines.slice(1).filter(l => l.trim()).map(line => {
         const r = parseCSVLine(line);
         const first = getCol(r, 'first_name') || getCol(r, 'firstname') || getCol(r, 'first name');
         const last = getCol(r, 'last_name') || getCol(r, 'lastname') || getCol(r, 'last name');
         const fullName = getCol(r, 'full_name') || getCol(r, 'fullname') || getCol(r, 'name');
-        const finalFirst = first || (fullName ? fullName.split(' ')[0] : '');
-        const finalLast = last || (fullName ? fullName.split(' ').slice(1).join(' ') : '');
+        const finalFirst = (first || (fullName ? fullName.split(' ')[0] : '')).trim();
+        const finalLast = (last || (fullName ? fullName.split(' ').slice(1).join(' ') : '')).trim();
         if (!finalFirst || !finalLast) return null;
         const gradeRaw = parseInt(getCol(r, 'grade_year') || getCol(r, 'grade'), 10);
         const grade_year = GRADE_YEARS.includes(gradeRaw) ? gradeRaw : null;
@@ -408,18 +408,53 @@ export default function StudentsClient() {
           gender: getCol(r, 'gender') || null,
           school_year: getCol(r, 'school_year') || getCol(r, 'school year') || null,
         };
-      }).filter(Boolean);
+      }).filter(Boolean) as { first_name: string; last_name: string; student_number: string | null; grade_year: number | null; gender: string | null; school_year: string | null }[];
 
-      if (toInsert.length === 0) {
+      if (parsed.length === 0) {
         setImportStatus('error');
         setImportMsg('No valid rows found. CSV must have first_name (or full_name) and last_name columns.');
         return;
       }
 
-      const { error } = await getSupabaseClient().from('students').insert(toInsert as any[]);
-      if (error) throw error;
+      // Fetch all existing students for deduplication
+      const sb = getSupabaseClient();
+      const { data: existing } = await sb.from('students').select('id,first_name,last_name,student_number');
+      const existingList = (existing ?? []) as { id: string; first_name: string; last_name: string; student_number: string | null }[];
 
-      setImportStatus('done'); setImportMsg(`✓ Imported ${toInsert.length} students.`);
+      const toInsert: typeof parsed = [];
+      let updatedCount = 0;
+
+      for (const row of parsed) {
+        // Match by student_number first, then by name
+        const match = existingList.find(e =>
+          (row.student_number && e.student_number && e.student_number === row.student_number) ||
+          (e.last_name.toLowerCase() === row.last_name.toLowerCase() &&
+           e.first_name.toLowerCase() === row.first_name.toLowerCase())
+        );
+
+        if (match) {
+          // Update grade and reference year; preserve other fields
+          if (row.grade_year) {
+            await sb.from('students').update({
+              grade_year: row.grade_year,
+              grade_year_reference: selectedYear,
+            }).eq('id', match.id);
+            updatedCount++;
+          }
+        } else {
+          toInsert.push(row);
+        }
+      }
+
+      if (toInsert.length > 0) {
+        const { error } = await sb.from('students').insert(
+          toInsert.map(r => ({ ...r, grade_year_reference: r.grade_year ? selectedYear : null }))
+        );
+        if (error) throw error;
+      }
+
+      setImportStatus('done');
+      setImportMsg(`✓ ${toInsert.length} added, ${updatedCount} updated (grade advanced).`);
       await loadAll();
     } catch (e: any) { setImportStatus('error'); setImportMsg(humanizeError(e)); }
   }
