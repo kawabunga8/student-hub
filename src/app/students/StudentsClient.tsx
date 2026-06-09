@@ -11,6 +11,7 @@ type Student = {
   last_name: string;
   photo_url: string | null;
   grade_year: number | null;
+  grade_year_reference: string | null;
   gender: string | null;
   student_number: string | null;
   school_year: string | null;
@@ -31,6 +32,15 @@ function currentSchoolYear(): string {
   return `${startYear}-${String(startYear + 1).slice(2)}`;
 }
 
+function derivedGrade(gradeYear: number | null, reference: string | null, selectedYear: string): number | null {
+  if (!gradeYear || !reference) return gradeYear;
+  const refStart = parseInt(reference.split('-')[0]!);
+  const selStart = parseInt(selectedYear.split('-')[0]!);
+  const grade = gradeYear + (selStart - refStart);
+  return grade >= 9 && grade <= 12 ? grade : null;
+}
+
+const KNOWN_YEARS = ['2025-26', '2026-27'];
 const GRADE_YEARS = [9, 10, 11, 12];
 const GENDERS = ['male', 'female', 'non-binary'];
 const STUDENT_PHOTOS_BUCKET = 'Student Photos';
@@ -45,6 +55,8 @@ const RCS = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function StudentsClient() {
+  const [selectedYear, setSelectedYear] = useState(currentSchoolYear);
+
   // ── Global data ────────────────────────────────────────────────────────────
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<ClassRow[]>([]);
@@ -111,7 +123,7 @@ export default function StudentsClient() {
     try {
       const sb = getSupabaseClient();
       const [sr, cr] = await Promise.all([
-        sb.from('students').select('id,first_name,last_name,photo_url,grade_year,gender,student_number,school_year')
+        sb.from('students').select('id,first_name,last_name,photo_url,grade_year,grade_year_reference,gender,student_number,school_year')
           .order('last_name').order('first_name'),
         sb.from('classes').select('id,name,block_label,sort_order')
           .order('sort_order', { ascending: true, nullsFirst: false }),
@@ -175,7 +187,7 @@ export default function StudentsClient() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return students.filter(s => {
-      if (filterGrade !== 'all' && s.grade_year !== filterGrade) return false;
+      if (filterGrade !== 'all' && derivedGrade(s.grade_year, s.grade_year_reference, selectedYear) !== filterGrade) return false;
       if (!q) return true;
       return s.first_name.toLowerCase().includes(q) ||
         s.last_name.toLowerCase().includes(q) ||
@@ -195,6 +207,7 @@ export default function StudentsClient() {
       const { data, error } = await sb.from('students').insert({
         first_name: addForm.first_name.trim(), last_name: addForm.last_name.trim(),
         grade_year: addForm.grade_year ? parseInt(addForm.grade_year) : null,
+        grade_year_reference: addForm.grade_year ? selectedYear : null,
         gender: addForm.gender || null, student_number: addForm.student_number.trim() || null,
         school_year: addForm.school_year.trim() || null,
       }).select().single();
@@ -436,10 +449,11 @@ export default function StudentsClient() {
           <div style={{ color: RCS.white, fontWeight: 900, fontSize: 20 }}>Student Hub</div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* School year badge */}
-          <span style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${RCS.gold}`, background: RCS.paleGold, color: RCS.deepNavy, fontWeight: 900, fontSize: 13 }}>
-            {currentSchoolYear()}
-          </span>
+          {/* School year selector */}
+          <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)}
+            style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${RCS.gold}`, background: RCS.paleGold, color: RCS.deepNavy, fontWeight: 900, fontSize: 13, cursor: 'pointer' }}>
+            {KNOWN_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
           {/* Import */}
           <label style={{ ...S.navBtn, cursor: 'pointer' }}>
             {importStatus === 'working' ? 'Importing…' : '⬆ Import CSV'}
@@ -545,7 +559,7 @@ export default function StudentsClient() {
                     <div>
                       <div style={{ fontWeight: 900, color: RCS.deepNavy }}>{s.last_name}, {s.first_name}</div>
                       <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>
-                        {[s.student_number ? `#${s.student_number}` : null, s.grade_year ? `Gr. ${s.grade_year}` : null, s.gender ? cap(s.gender) : null].filter(Boolean).join(' · ') || '—'}
+                        {[s.student_number ? `#${s.student_number}` : null, derivedGrade(s.grade_year, s.grade_year_reference, selectedYear) ? `Gr. ${derivedGrade(s.grade_year, s.grade_year_reference, selectedYear)}` : null, s.gender ? cap(s.gender) : null].filter(Boolean).join(' · ') || '—'}
                       </div>
                     </div>
                     <button onClick={e => { e.stopPropagation(); void deleteStudent(s.id, `${s.first_name} ${s.last_name}`); }} style={S.dangerSm}>Delete</button>
