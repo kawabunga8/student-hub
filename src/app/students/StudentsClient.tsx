@@ -428,6 +428,10 @@ export default function StudentsClient() {
           <div style={{ color: RCS.white, fontWeight: 900, fontSize: 20 }}>Student Hub</div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* School year badge */}
+          <span style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${RCS.gold}`, background: RCS.paleGold, color: RCS.deepNavy, fontWeight: 900, fontSize: 13 }}>
+            2026–27
+          </span>
           {/* Import */}
           <label style={{ ...S.navBtn, cursor: 'pointer' }}>
             {importStatus === 'working' ? 'Importing…' : '⬆ Import CSV'}
