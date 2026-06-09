@@ -23,6 +23,14 @@ type MarkRow = { id: string; subject: string; mark: string; quarter: number | nu
 
 type Panel = 'info' | 'classes' | 'notes' | 'marks';
 
+function currentSchoolYear(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const startYear = month >= 9 ? year : year - 1;
+  return `${startYear}-${String(startYear + 1).slice(2)}`;
+}
+
 const GRADE_YEARS = [9, 10, 11, 12];
 const GENDERS = ['male', 'female', 'non-binary'];
 const STUDENT_PHOTOS_BUCKET = 'Student Photos';
@@ -430,7 +438,7 @@ export default function StudentsClient() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* School year badge */}
           <span style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${RCS.gold}`, background: RCS.paleGold, color: RCS.deepNavy, fontWeight: 900, fontSize: 13 }}>
-            2026–27
+            {currentSchoolYear()}
           </span>
           {/* Import */}
           <label style={{ ...S.navBtn, cursor: 'pointer' }}>
