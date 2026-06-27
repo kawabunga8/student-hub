@@ -15,6 +15,7 @@ type Student = {
   gender: string | null;
   student_number: string | null;
   school_year: string | null;
+  email: string | null;
 };
 
 type ClassRow = { id: string; name: string; block_label: string | null; sort_order: number | null };
@@ -73,7 +74,7 @@ export default function StudentsClient() {
 
   // ── Add student form ───────────────────────────────────────────────────────
   const [showAdd, setShowAdd] = useState(false);
-  const [addForm, setAddForm] = useState({ first_name: '', last_name: '', grade_year: '', gender: '', student_number: '', school_year: '' });
+  const [addForm, setAddForm] = useState({ first_name: '', last_name: '', grade_year: '', gender: '', student_number: '', school_year: '', email: '' });
   const [addStatus, setAddStatus] = useState<'idle' | 'working' | 'error'>('idle');
   const [addError, setAddError] = useState<string | null>(null);
 
@@ -123,7 +124,7 @@ export default function StudentsClient() {
     try {
       const sb = getSupabaseClient();
       const [sr, cr] = await Promise.all([
-        sb.from('students').select('id,first_name,last_name,photo_url,grade_year,grade_year_reference,gender,student_number,school_year')
+        sb.from('students').select('id,first_name,last_name,photo_url,grade_year,grade_year_reference,gender,student_number,school_year,email')
           .order('last_name').order('first_name'),
         sb.from('classes').select('id,name,block_label,sort_order')
           .order('sort_order', { ascending: true, nullsFirst: false }),
@@ -144,7 +145,7 @@ export default function StudentsClient() {
     if (!selectedId) { setEditForm(null); return; }
     const s = students.find(s => s.id === selectedId);
     if (!s) return;
-    setEditForm({ first_name: s.first_name, last_name: s.last_name, grade_year: s.grade_year, gender: s.gender, student_number: s.student_number, school_year: s.school_year });
+    setEditForm({ first_name: s.first_name, last_name: s.last_name, grade_year: s.grade_year, gender: s.gender, student_number: s.student_number, school_year: s.school_year, email: s.email });
     setEditStatus('idle'); setEditError(null);
     setSignedUrl(null); setUploadStatus('idle'); setUploadError(null);
     setEnrollments([]); setNotes([]); setMarks([]);
@@ -210,10 +211,11 @@ export default function StudentsClient() {
         grade_year_reference: addForm.grade_year ? selectedYear : null,
         gender: addForm.gender || null, student_number: addForm.student_number.trim() || null,
         school_year: addForm.school_year.trim() || null,
+        email: addForm.email.trim().toLowerCase() || null,
       }).select().single();
       if (error) throw error;
       setStudents(prev => [...prev, data as Student].sort((a, b) => a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name)));
-      setShowAdd(false); setAddForm({ first_name: '', last_name: '', grade_year: '', gender: '', student_number: '', school_year: '' });
+      setShowAdd(false); setAddForm({ first_name: '', last_name: '', grade_year: '', gender: '', student_number: '', school_year: '', email: '' });
       setAddStatus('idle'); setSelectedId((data as Student).id);
     } catch (e: any) { setAddStatus('error'); setAddError(humanizeError(e)); }
   }
@@ -223,7 +225,7 @@ export default function StudentsClient() {
     if (!editForm.first_name?.trim() || !editForm.last_name?.trim()) { setEditError('First and last name are required.'); return; }
     setEditStatus('working'); setEditError(null);
     try {
-      const payload = { first_name: editForm.first_name?.trim() || '', last_name: editForm.last_name?.trim() || '', grade_year: editForm.grade_year ?? null, gender: editForm.gender ?? null, student_number: editForm.student_number?.trim() || null, school_year: editForm.school_year?.trim() || null };
+      const payload = { first_name: editForm.first_name?.trim() || '', last_name: editForm.last_name?.trim() || '', grade_year: editForm.grade_year ?? null, gender: editForm.gender ?? null, student_number: editForm.student_number?.trim() || null, school_year: editForm.school_year?.trim() || null, email: editForm.email?.trim().toLowerCase() || null };
       const { error } = await getSupabaseClient().from('students').update(payload).eq('id', selectedId);
       if (error) throw error;
       setStudents(prev => prev.map(s => s.id === selectedId ? { ...s, ...payload } : s));
@@ -364,9 +366,9 @@ export default function StudentsClient() {
   // ── Export CSV ─────────────────────────────────────────────────────────────
 
   function exportCSV() {
-    const header = 'first_name,last_name,student_number,grade_year,gender,school_year';
+    const header = 'first_name,last_name,student_number,grade_year,gender,school_year,email';
     const rows = students.map(s =>
-      [s.first_name, s.last_name, s.student_number ?? '', s.grade_year ?? '', s.gender ?? '', s.school_year ?? '']
+      [s.first_name, s.last_name, s.student_number ?? '', s.grade_year ?? '', s.gender ?? '', s.school_year ?? '', s.email ?? '']
         .map(v => `"${String(v).replace(/"/g, '""')}"`)
         .join(',')
     );
@@ -401,14 +403,16 @@ export default function StudentsClient() {
         if (!finalFirst || !finalLast) return null;
         const gradeRaw = parseInt(getCol(r, 'grade_year') || getCol(r, 'grade'), 10);
         const grade_year = GRADE_YEARS.includes(gradeRaw) ? gradeRaw : null;
+        const email = (getCol(r, 'email') || getCol(r, 'student_email') || getCol(r, 'student email') || '').toLowerCase() || null;
         return {
           first_name: finalFirst, last_name: finalLast,
           student_number: getCol(r, 'student_number') || getCol(r, 'student number') || null,
           grade_year,
           gender: getCol(r, 'gender') || null,
           school_year: getCol(r, 'school_year') || getCol(r, 'school year') || null,
+          email,
         };
-      }).filter(Boolean) as { first_name: string; last_name: string; student_number: string | null; grade_year: number | null; gender: string | null; school_year: string | null }[];
+      }).filter(Boolean) as { first_name: string; last_name: string; student_number: string | null; grade_year: number | null; gender: string | null; school_year: string | null; email: string | null }[];
 
       if (parsed.length === 0) {
         setImportStatus('error');
@@ -418,27 +422,28 @@ export default function StudentsClient() {
 
       // Fetch all existing students for deduplication
       const sb = getSupabaseClient();
-      const { data: existing } = await sb.from('students').select('id,first_name,last_name,student_number');
-      const existingList = (existing ?? []) as { id: string; first_name: string; last_name: string; student_number: string | null }[];
+      const { data: existing } = await sb.from('students').select('id,first_name,last_name,student_number,email');
+      const existingList = (existing ?? []) as { id: string; first_name: string; last_name: string; student_number: string | null; email: string | null }[];
 
       const toInsert: typeof parsed = [];
       let updatedCount = 0;
 
       for (const row of parsed) {
-        // Match by student_number first, then by name
+        // Match by email first (most reliable on re-import), then student_number, then name
         const match = existingList.find(e =>
+          (row.email && e.email && e.email.toLowerCase() === row.email) ||
           (row.student_number && e.student_number && e.student_number === row.student_number) ||
           (e.last_name.toLowerCase() === row.last_name.toLowerCase() &&
            e.first_name.toLowerCase() === row.first_name.toLowerCase())
         );
 
         if (match) {
-          // Update grade and reference year; preserve other fields
-          if (row.grade_year) {
-            await sb.from('students').update({
-              grade_year: row.grade_year,
-              grade_year_reference: selectedYear,
-            }).eq('id', match.id);
+          // Update grade/reference year and email; preserve other fields
+          const updates: Record<string, unknown> = {};
+          if (row.grade_year) { updates.grade_year = row.grade_year; updates.grade_year_reference = selectedYear; }
+          if (row.email && row.email !== match.email) updates.email = row.email;
+          if (Object.keys(updates).length > 0) {
+            await sb.from('students').update(updates).eq('id', match.id);
             updatedCount++;
           }
         } else {
@@ -500,6 +505,7 @@ export default function StudentsClient() {
             {showAdd ? '✕ Cancel' : '+ New Student'}
           </button>
           <button onClick={loadAll} style={S.navBtn}>↻ Refresh</button>
+          <a href="/courses" style={{ ...S.navBtn, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Courses</a>
           <a href="/standards" style={{ ...S.navBtn, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Learning Standards</a>
           <button onClick={signOut} style={S.navBtnOutline}>Sign out</button>
         </div>
@@ -548,6 +554,10 @@ export default function StudentsClient() {
               <label style={S.fieldWrap}>
                 <span style={S.label}>School year</span>
                 <input value={addForm.school_year} onChange={e => setAddForm(p => ({ ...p, school_year: e.target.value }))} placeholder="e.g. 2025-26" style={S.input} />
+              </label>
+              <label style={S.fieldWrap}>
+                <span style={S.label}>Email</span>
+                <input value={addForm.email} onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))} placeholder="student@rcseagles.ca" style={S.input} />
               </label>
             </div>
             {addError && <div style={{ ...S.errorBox, marginTop: 10 }}>{addError}</div>}
@@ -679,6 +689,10 @@ export default function StudentsClient() {
                     <label style={S.fieldWrap}>
                       <span style={S.label}>School year</span>
                       <input value={editForm.school_year ?? ''} onChange={e => setEditForm(p => p ? { ...p, school_year: e.target.value || null } : p)} placeholder="e.g. 2025-26" style={S.input} />
+                    </label>
+                    <label style={S.fieldWrap}>
+                      <span style={S.label}>Email</span>
+                      <input value={editForm.email ?? ''} onChange={e => setEditForm(p => p ? { ...p, email: e.target.value || null } : p)} placeholder="student@rcseagles.ca" style={S.input} />
                     </label>
                   </div>
 
