@@ -500,6 +500,7 @@ export default function StudentsClient() {
             {showAdd ? '✕ Cancel' : '+ New Student'}
           </button>
           <button onClick={loadAll} style={S.navBtn}>↻ Refresh</button>
+          <a href="/standards" style={{ ...S.navBtn, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Learning Standards</a>
           <button onClick={signOut} style={S.navBtnOutline}>Sign out</button>
         </div>
       </header>

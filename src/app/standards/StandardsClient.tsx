@@ -189,7 +189,10 @@ export default function StandardsClient() {
   return (
     <div style={{ padding: 24, fontFamily: 'system-ui, sans-serif', color: RCS.textDark }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h1 style={{ color: RCS.deepNavy, margin: 0 }}>Learning Standards</h1>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'baseline' }}>
+          <h1 style={{ color: RCS.deepNavy, margin: 0 }}>Learning Standards</h1>
+          <a href="/students" style={{ color: RCS.midBlue, fontWeight: 700, fontSize: 14 }}>← Students</a>
+        </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} style={{ padding: 8, border: `1px solid ${RCS.deepNavy}`, borderRadius: 8 }}>
             {KNOWN_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
