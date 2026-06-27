@@ -20,6 +20,13 @@
 -- current_learning_standards(p_school_year) function below to resolve "what applies this
 -- year" instead of re-implementing the school_year filter in each app.
 --
+-- public.courses is the canonical course/class catalog, replacing the formerly-parallel
+-- public.classes (toc-dayplans) and rcs.courses (rcs-report-card-tool) catalogs. Same
+-- versioning rule as learning_standards: edits to an already-referenced course create a
+-- new row + superseded_by link, never mutate in place. Use current_courses(p_school_year)
+-- to resolve "what's active this year". public.classes is kept as a read-only VIEW over
+-- this table (not a separate table) so Kawahoot/group-maker keep working unmodified.
+--
 -- IMPORTANT: This Supabase project has both a public schema and an rcs schema.
 -- The SQL editor search path resolves rcs before public, so unqualified table
 -- names will silently hit the wrong table. Always use explicit public. prefixes.
@@ -80,6 +87,42 @@ create table if not exists public.student_marks (
   note text,
   created_at timestamptz not null default now()
 );
+
+-- =============================================================================
+-- CANONICAL COURSE CATALOG (owned by student-hub)
+-- =============================================================================
+
+create table if not exists public.courses (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  block text,
+  grade_years int[] not null default '{}',
+  school_year text,
+  type text not null default 'academic' check (type in ('academic', 'chapel', 'flex', 'lunch', 'cle')),
+  room text,
+  sort_order int,
+  quarters text[],
+  superseded_by uuid references public.courses(id),
+  superseded_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists courses_block_idx on public.courses(block);
+create index if not exists courses_school_year_idx on public.courses(school_year);
+
+create or replace function public.current_courses(p_school_year text)
+returns setof public.courses
+language sql
+stable
+set search_path = public
+as $$
+  select distinct on (block, name) c.*
+  from public.courses c
+  where (c.school_year = p_school_year or c.school_year is null)
+    and c.superseded_by is null
+  order by block, name, (c.school_year is not null) desc;
+$$;
 
 -- =============================================================================
 -- LEARNING STANDARDS CATALOG (owned by student-hub)
@@ -155,6 +198,7 @@ alter table public.student_notes enable row level security;
 alter table public.student_marks enable row level security;
 alter table public.learning_standards enable row level security;
 alter table public.learning_standard_rubrics enable row level security;
+alter table public.courses enable row level security;
 
 -- Authenticated users (staff) can read and write all tables.
 -- The app requires login via middleware; these policies enforce the same rule at the DB layer.
@@ -165,3 +209,4 @@ create policy "Authenticated full access" on public.student_notes for all to aut
 create policy "Authenticated full access" on public.student_marks for all to authenticated using (true) with check (true);
 create policy "Authenticated full access" on public.learning_standards for all to authenticated using (true) with check (true);
 create policy "Authenticated full access" on public.learning_standard_rubrics for all to authenticated using (true) with check (true);
+create policy "Authenticated full access" on public.courses for all to authenticated using (true) with check (true);
