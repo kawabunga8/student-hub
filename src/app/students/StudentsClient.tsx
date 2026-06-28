@@ -46,6 +46,12 @@ const GRADE_YEARS = [9, 10, 11, 12];
 const GENDERS = ['male', 'female', 'non-binary'];
 const STUDENT_PHOTOS_BUCKET = 'Student Photos';
 
+// Same convention used across the other RCS apps: red = not set, blue = male, pink = female, green = non-binary.
+const GENDER_DOT: Record<string, string> = { male: '#3d6bc4', female: '#d4537e', 'non-binary': '#3b6d11' };
+function genderDotColor(gender: string | null): string {
+  return gender ? (GENDER_DOT[gender] ?? '#999') : '#d4302f';
+}
+
 // ── RCS colours ───────────────────────────────────────────────────────────────
 
 const RCS = {
@@ -67,6 +73,11 @@ export default function StudentsClient() {
   // ── Search / filter ────────────────────────────────────────────────────────
   const [search, setSearch] = useState('');
   const [filterGrade, setFilterGrade] = useState<number | 'all'>('all');
+  const [view, setView] = useState<'all' | 'grade' | 'block' | 'gender'>('all');
+
+  // ── Directory-wide data (for thumbnails + "By Block" grouping) ────────────
+  const [allEnrollments, setAllEnrollments] = useState<{ student_id: string; class_id: string; school_year: string | null }[]>([]);
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
 
   // ── Selected student ───────────────────────────────────────────────────────
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -123,21 +134,40 @@ export default function StudentsClient() {
     setLoadStatus('loading'); setLoadError(null);
     try {
       const sb = getSupabaseClient();
-      const [sr, cr] = await Promise.all([
+      const [sr, cr, er] = await Promise.all([
         sb.from('students').select('id,first_name,last_name,photo_url,grade_year,grade_year_reference,gender,student_number,school_year,email')
           .order('last_name').order('first_name'),
         sb.from('classes').select('id,name,block_label,sort_order')
           .order('sort_order', { ascending: true, nullsFirst: false }),
+        sb.from('enrollments').select('student_id,class_id,school_year'),
       ]);
       if (sr.error) throw sr.error;
       if (cr.error) throw cr.error;
+      if (er.error) throw er.error;
       setStudents((sr.data ?? []) as Student[]);
       setClasses((cr.data ?? []) as ClassRow[]);
+      setAllEnrollments((er.data ?? []) as { student_id: string; class_id: string; school_year: string | null }[]);
       setLoadStatus('idle');
     } catch (e: any) { setLoadStatus('error'); setLoadError(humanizeError(e)); }
   }, []);
 
   useEffect(() => { void loadAll(); }, [loadAll]);
+
+  // ── Bulk-fetch signed photo URLs for the whole directory (thumbnails in the list) ──
+  useEffect(() => {
+    const sb = getSupabaseClient();
+    const paths = students.map(s => s.photo_url).filter((p): p is string => !!p && !photoUrls[p]);
+    if (paths.length === 0) return;
+    void sb.storage.from(STUDENT_PHOTOS_BUCKET).createSignedUrls(paths, 3600).then(({ data }) => {
+      if (!data) return;
+      setPhotoUrls(prev => {
+        const next = { ...prev };
+        for (const row of data) if (row.signedUrl && !row.error) next[row.path ?? ''] = row.signedUrl;
+        return next;
+      });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [students]);
 
   // ── When selected student changes ──────────────────────────────────────────
 
@@ -197,6 +227,38 @@ export default function StudentsClient() {
   }, [students, search, filterGrade]);
 
   const selectedStudent = useMemo(() => students.find(s => s.id === selectedId) ?? null, [students, selectedId]);
+
+  function enrolledClassIds(studentId: string): string[] {
+    return allEnrollments
+      .filter(e => e.student_id === studentId && (e.school_year == null || e.school_year === selectedYear))
+      .map(e => e.class_id);
+  }
+
+  // ── Grouped sections for the "By Grade / By Block / By Gender" views ──────
+  const groupedSections = useMemo(() => {
+    if (view === 'grade') {
+      return GRADE_YEARS.map(g => ({
+        key: `grade-${g}`, label: `Grade ${g}`,
+        students: filtered.filter(s => derivedGrade(s.grade_year, s.grade_year_reference, selectedYear) === g),
+      })).filter(sec => sec.students.length > 0);
+    }
+    if (view === 'block') {
+      return classes.map(c => ({
+        key: `block-${c.id}`, label: (c.block_label ? `Block ${c.block_label} — ` : '') + c.name,
+        students: filtered.filter(s => enrolledClassIds(s.id).includes(c.id)),
+      })).filter(sec => sec.students.length > 0);
+    }
+    if (view === 'gender') {
+      return [
+        { key: 'gender-male', label: 'Male', students: filtered.filter(s => s.gender === 'male') },
+        { key: 'gender-female', label: 'Female', students: filtered.filter(s => s.gender === 'female') },
+        { key: 'gender-nonbinary', label: 'Non-binary', students: filtered.filter(s => s.gender === 'non-binary') },
+        { key: 'gender-none', label: 'Not set', students: filtered.filter(s => !s.gender) },
+      ].filter(sec => sec.students.length > 0);
+    }
+    return [{ key: 'all', label: 'Directory', students: filtered }];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, filtered, classes, allEnrollments, selectedYear]);
 
   // ── CRUD: students ─────────────────────────────────────────────────────────
 
@@ -580,39 +642,63 @@ export default function StudentsClient() {
           <span style={{ fontSize: 13, opacity: 0.65, whiteSpace: 'nowrap' }}>
             {loadStatus === 'loading' ? 'Loading…' : `${filtered.length} of ${students.length} students`}
           </span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {(['all', 'grade', 'block', 'gender'] as const).map(v => (
+              <button key={v} onClick={() => setView(v)} style={{
+                padding: '6px 14px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700,
+                background: view === v ? RCS.deepNavy : '#e8eef4',
+                color: view === v ? RCS.white : RCS.textDark,
+              }}>
+                {v === 'all' ? 'All' : v === 'grade' ? 'By Grade' : v === 'block' ? 'By Block' : 'By Gender'}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* ── Two-column layout ── */}
         <div style={{ display: 'grid', gridTemplateColumns: selectedId ? '380px 1fr' : '1fr', gap: 16, alignItems: 'start' }}>
 
-          {/* ── Student list ── */}
-          <div style={S.card}>
-            <div style={S.sectionHeader}>Directory</div>
-            {loadStatus === 'loading' && <div style={S.muted}>Loading students…</div>}
+          {/* ── Student list (grouped per the selected view) ── */}
+          <div style={{ display: 'grid', gap: 16 }}>
             {loadStatus === 'idle' && filtered.length === 0 && (
-              <div style={S.muted}>{students.length === 0 ? 'No students yet.' : 'No matches.'}</div>
+              <div style={S.card}><div style={S.muted}>{students.length === 0 ? 'No students yet.' : 'No matches.'}</div></div>
             )}
-            <div style={{ display: 'grid', gap: 5 }}>
-              {filtered.map((s, i) => {
-                const sel = s.id === selectedId;
-                return (
-                  <div key={s.id} onClick={() => setSelectedId(sel ? null : s.id)}
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
-                      padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
-                      border: sel ? `2px solid ${RCS.gold}` : `1px solid ${i % 2 === 0 ? RCS.deepNavy : '#c8d8e8'}`,
-                      background: sel ? RCS.paleGold : (i % 2 === 0 ? RCS.white : '#f5f8fb'),
-                    }}>
-                    <div>
-                      <div style={{ fontWeight: 900, color: RCS.deepNavy }}>{s.last_name}, {s.first_name}</div>
-                      <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>
-                        {[s.student_number ? `#${s.student_number}` : null, derivedGrade(s.grade_year, s.grade_year_reference, selectedYear) ? `Gr. ${derivedGrade(s.grade_year, s.grade_year_reference, selectedYear)}` : null, s.gender ? cap(s.gender) : null].filter(Boolean).join(' · ') || '—'}
+            {loadStatus === 'loading' && <div style={S.card}><div style={S.muted}>Loading students…</div></div>}
+            {loadStatus === 'idle' && groupedSections.map(section => (
+              <div key={section.key} style={S.card}>
+                <div style={S.sectionHeader}>{section.label}{view !== 'all' ? ` (${section.students.length})` : ''}</div>
+                <div style={{ display: 'grid', gap: 5 }}>
+                  {section.students.map((s, i) => {
+                    const sel = s.id === selectedId;
+                    const url = s.photo_url ? photoUrls[s.photo_url] : undefined;
+                    return (
+                      <div key={s.id} onClick={() => setSelectedId(sel ? null : s.id)}
+                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
+                          padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+                          border: sel ? `2px solid ${RCS.gold}` : `1px solid ${i % 2 === 0 ? RCS.deepNavy : '#c8d8e8'}`,
+                          background: sel ? RCS.paleGold : (i % 2 === 0 ? RCS.white : '#f5f8fb'),
+                        }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+                            border: `2px solid ${genderDotColor(s.gender)}`, background: RCS.paleGold,
+                            display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 900, color: RCS.deepNavy }}>
+                            {url ? <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              : `${s.first_name[0] ?? ''}${s.last_name[0] ?? ''}`}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 900, color: RCS.deepNavy }}>{s.last_name}, {s.first_name}</div>
+                            <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>
+                              {[s.student_number ? `#${s.student_number}` : null, derivedGrade(s.grade_year, s.grade_year_reference, selectedYear) ? `Gr. ${derivedGrade(s.grade_year, s.grade_year_reference, selectedYear)}` : null, s.gender ? cap(s.gender) : null].filter(Boolean).join(' · ') || '—'}
+                            </div>
+                          </div>
+                        </div>
+                        <button onClick={e => { e.stopPropagation(); void deleteStudent(s.id, `${s.first_name} ${s.last_name}`); }} style={S.dangerSm}>Delete</button>
                       </div>
-                    </div>
-                    <button onClick={e => { e.stopPropagation(); void deleteStudent(s.id, `${s.first_name} ${s.last_name}`); }} style={S.dangerSm}>Delete</button>
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* ── Detail panel ── */}
