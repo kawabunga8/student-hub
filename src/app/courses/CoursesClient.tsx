@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getSupabaseClient } from '@/lib/supabaseClient';
+import Banner from '@/components/Banner';
 
 type Course = {
   id: string;
@@ -166,24 +167,25 @@ export default function CoursesClient() {
   }
 
   return (
-    <div style={{ padding: 24, fontFamily: 'system-ui, sans-serif', color: RCS.textDark }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'baseline' }}>
-          <h1 style={{ color: RCS.deepNavy, margin: 0 }}>Courses</h1>
-          <a href="/students" style={{ color: RCS.midBlue, fontWeight: 700, fontSize: 14 }}>← Students</a>
-        </div>
+    <div style={{ minHeight: '100vh', background: '#f0f4f8', fontFamily: 'system-ui, sans-serif' }}>
+      <Banner active="courses" />
+
+      <div style={{ background: RCS.midBlue, padding: '10px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+        <h1 style={{ color: RCS.white, margin: 0, fontSize: 18 }}>Courses</h1>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} style={{ padding: 8, border: `1px solid ${RCS.deepNavy}`, borderRadius: 8 }}>
+          <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} style={{ padding: 8, border: `1px solid ${RCS.gold}`, borderRadius: 8, background: RCS.paleGold, color: RCS.deepNavy, fontWeight: 900 }}>
             {KNOWN_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
           <button
             onClick={() => setShowAdd((v) => !v)}
-            style={{ background: RCS.deepNavy, border: `1px solid ${RCS.gold}`, color: RCS.white, borderRadius: 10, fontWeight: 900, padding: '8px 16px', cursor: 'pointer' }}
+            style={{ background: RCS.gold, border: `1px solid ${RCS.gold}`, color: RCS.deepNavy, borderRadius: 10, fontWeight: 900, padding: '8px 16px', cursor: 'pointer' }}
           >
             + Add Course
           </button>
         </div>
       </div>
+
+      <div style={{ padding: 24, color: RCS.textDark }}>
 
       {showAdd && (
         <div style={{ border: `1px solid ${RCS.deepNavy}`, borderRadius: 12, padding: 16, marginBottom: 20, background: RCS.paleGold }}>
@@ -253,6 +255,7 @@ export default function CoursesClient() {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }

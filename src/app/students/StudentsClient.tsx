@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getSupabaseClient } from '@/lib/supabaseClient';
+import Banner from '@/components/Banner';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -526,13 +527,6 @@ export default function StudentsClient() {
     } catch (e: any) { setImportStatus('error'); setImportMsg(humanizeError(e)); }
   }
 
-  // ── Sign out ───────────────────────────────────────────────────────────────
-
-  async function signOut() {
-    await getSupabaseClient().auth.signOut();
-    window.location.href = '/login';
-  }
-
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const enrolledIds = new Set(enrollments.map(e => e.class_id));
@@ -544,34 +538,27 @@ export default function StudentsClient() {
   return (
     <div style={{ minHeight: '100vh', background: '#f0f4f8', fontFamily: 'system-ui' }}>
 
-      {/* ── Nav bar ── */}
-      <header style={{ background: RCS.deepNavy, borderBottom: `4px solid ${RCS.gold}`, padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <div style={{ color: RCS.gold, fontWeight: 900, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>Richmond Christian School</div>
-          <div style={{ color: RCS.white, fontWeight: 900, fontSize: 20 }}>Student Hub</div>
-        </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* School year selector */}
-          <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)}
-            style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${RCS.gold}`, background: RCS.paleGold, color: RCS.deepNavy, fontWeight: 900, fontSize: 13, cursor: 'pointer' }}>
-            {KNOWN_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-          {/* Import */}
-          <label style={{ ...S.navBtn, cursor: 'pointer' }}>
-            {importStatus === 'working' ? 'Importing…' : '⬆ Import CSV'}
-            <input ref={importRef} type="file" accept=".csv" style={{ display: 'none' }}
-              onChange={e => { const f = e.target.files?.[0]; if (f) { void importCSV(f); e.currentTarget.value = ''; } }} />
-          </label>
-          <button onClick={exportCSV} style={S.navBtn}>⬇ Export CSV</button>
-          <button onClick={() => { setShowAdd(v => !v); setAddError(null); }} style={S.navBtnGold}>
-            {showAdd ? '✕ Cancel' : '+ New Student'}
-          </button>
-          <button onClick={loadAll} style={S.navBtn}>↻ Refresh</button>
-          <a href="/courses" style={{ ...S.navBtn, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Courses</a>
-          <a href="/standards" style={{ ...S.navBtn, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Learning Standards</a>
-          <button onClick={signOut} style={S.navBtnOutline}>Sign out</button>
-        </div>
-      </header>
+      <Banner active="students" />
+
+      {/* ── Page toolbar ── */}
+      <div style={{ background: RCS.midBlue, padding: '10px 24px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        {/* School year selector */}
+        <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)}
+          style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${RCS.gold}`, background: RCS.paleGold, color: RCS.deepNavy, fontWeight: 900, fontSize: 13, cursor: 'pointer' }}>
+          {KNOWN_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+        {/* Import */}
+        <label style={{ ...S.navBtn, cursor: 'pointer' }}>
+          {importStatus === 'working' ? 'Importing…' : '⬆ Import CSV'}
+          <input ref={importRef} type="file" accept=".csv" style={{ display: 'none' }}
+            onChange={e => { const f = e.target.files?.[0]; if (f) { void importCSV(f); e.currentTarget.value = ''; } }} />
+        </label>
+        <button onClick={exportCSV} style={S.navBtn}>⬇ Export CSV</button>
+        <button onClick={() => { setShowAdd(v => !v); setAddError(null); }} style={S.navBtnGold}>
+          {showAdd ? '✕ Cancel' : '+ New Student'}
+        </button>
+        <button onClick={loadAll} style={S.navBtn}>↻ Refresh</button>
+      </div>
 
       {/* Import feedback */}
       {importMsg && (
