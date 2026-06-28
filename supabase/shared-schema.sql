@@ -7,7 +7,7 @@
 -- │ student-hub         │ R/W      │ R/W     │ R/W         │ R/W           │ R/W           │ R/W               │ R/W                     │
 -- │ toc-dayplans        │ R/W      │ R/W     │ R/W         │ R/W           │ R/W           │ R                 │ R                       │
 -- │ Kawahoot            │ R        │ R       │ R           │ -             │ -             │ -                 │ -                       │
--- │ group-maker         │ R        │ R       │ R           │ -             │ -             │ -                 │ -                       │
+-- │ group-maker         │ R        │ R       │ R           │ -             │ -             │ -                 │ -                       │ (also R/W own group_maker_classes/students)
 -- │ rcs-report-card-tool│ R        │ -       │ -           │ -             │ -             │ R (via public_standard_id FK on rcs.learning_standards) │ R │
 -- └─────────────────────┴──────────┴─────────┴─────────────┴───────────────┴───────────────┴───────────────────┴─────────────────────────┘
 --
@@ -20,12 +20,19 @@
 -- current_learning_standards(p_school_year) function below to resolve "what applies this
 -- year" instead of re-implementing the school_year filter in each app.
 --
--- public.courses is the canonical course/class catalog, replacing the formerly-parallel
--- public.classes (toc-dayplans) and rcs.courses (rcs-report-card-tool) catalogs. Same
--- versioning rule as learning_standards: edits to an already-referenced course create a
--- new row + superseded_by link, never mutate in place. Use current_courses(p_school_year)
--- to resolve "what's active this year". public.classes is kept as a read-only VIEW over
--- this table (not a separate table) so Kawahoot/group-maker keep working unmodified.
+-- public.courses is the canonical course/class catalog, intended to eventually replace
+-- the parallel public.classes (toc-dayplans) and rcs.courses (rcs-report-card-tool)
+-- catalogs. Same versioning rule as learning_standards: edits to an already-referenced
+-- course create a new row + superseded_by link, never mutate in place. Use
+-- current_courses(p_school_year) to resolve "what's active this year". public.classes
+-- is STILL a separate real table (not a view) — retiring it is blocked on migrating
+-- toc-dayplans' day_plan_blocks/class_toc_templates/toc_block_plans FKs off it first,
+-- which hasn't happened yet. Don't assume the two stay in sync.
+--
+-- group_maker_classes/group_maker_students are Group Maker's own ad-hoc, manually-typed
+-- groupings (not real student records) — distinct from public.classes/public.students,
+-- which Group Maker also reads (read-only) to import a real course roster as a one-time
+-- snapshot.
 --
 -- IMPORTANT: This Supabase project has both a public schema and an rcs schema.
 -- The SQL editor search path resolves rcs before public, so unqualified table
@@ -125,6 +132,26 @@ as $$
 $$;
 
 -- =============================================================================
+-- GROUP MAKER'S OWN AD-HOC CLASSES (owned by group-maker; distinct from the
+-- real public.classes/public.students above)
+-- =============================================================================
+
+create table if not exists public.group_maker_classes (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.group_maker_students (
+  id uuid primary key default gen_random_uuid(),
+  class_id uuid not null references public.group_maker_classes(id) on delete cascade,
+  full_name text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists group_maker_students_class_id_idx on public.group_maker_students(class_id);
+
+-- =============================================================================
 -- LEARNING STANDARDS CATALOG (owned by student-hub)
 -- =============================================================================
 
@@ -210,3 +237,8 @@ create policy "Authenticated full access" on public.student_marks for all to aut
 create policy "Authenticated full access" on public.learning_standards for all to authenticated using (true) with check (true);
 create policy "Authenticated full access" on public.learning_standard_rubrics for all to authenticated using (true) with check (true);
 create policy "Authenticated full access" on public.courses for all to authenticated using (true) with check (true);
+
+alter table public.group_maker_classes enable row level security;
+alter table public.group_maker_students enable row level security;
+create policy "Authenticated full access" on public.group_maker_classes for all to authenticated using (true) with check (true);
+create policy "Authenticated full access" on public.group_maker_students for all to authenticated using (true) with check (true);
